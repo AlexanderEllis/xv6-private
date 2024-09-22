@@ -89,3 +89,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_settickets(int number)
+{
+  // First, basic validation to ensure that it's a valid number of tickets.
+  if (number < 1) {
+    return -1;
+  }
+  // Now that we know it's OK, we'll update the proc's ticket count.
+  myproc()->tickets = number;
+  return 0;
+}
