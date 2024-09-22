@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "pstat.h"
 
 int
 sys_fork(void)
@@ -91,13 +92,28 @@ sys_uptime(void)
 }
 
 int
-sys_settickets(int number)
+sys_settickets(void)
 {
   // First, basic validation to ensure that it's a valid number of tickets.
+  int number;
+
+  if(argint(0, &number) < 0)
+    return -1;
   if (number < 1) {
     return -1;
   }
   // Now that we know it's OK, we'll update the proc's ticket count.
   myproc()->tickets = number;
   return 0;
+}
+
+int 
+sys_getpinfo(void)
+{
+  // Get the actual pointer as an argument, validate, and pass to getpinfo
+  struct pstat * pstat_ptr;
+  if (argptr(0, (void*) &pstat_ptr, sizeof(*pstat_ptr)) < 0)
+    return -1;
+
+  return getpinfo(pstat_ptr);
 }

@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "pstat.h"
 #include "spinlock.h"
 
 struct {
@@ -536,4 +537,20 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int
+getpinfo(struct pstat * pstat_ptr)
+{
+  // TODO: should we lock?
+  struct proc *p;
+  // Iterate through all of the processes and fill in the table accordingly.
+  for (int i = 0; i < NPROC; i++) {
+    p = &ptable.proc[i];
+    pstat_ptr->inuse[i] = p->state == UNUSED ? 0 : 1;
+    pstat_ptr->tickets[i] = p->tickets;
+    pstat_ptr->pid[i] = p->pid;
+    pstat_ptr->ticks[i] = 0;
+  }
+  return 0;
 }
