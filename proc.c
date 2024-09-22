@@ -317,6 +317,16 @@ wait(void)
   }
 }
 
+// Pseudo random stuff
+unsigned long int next = 1;
+
+int rand(void)
+{
+    next = next * 1103515243 + 12345;
+    return (unsigned int)(next / 65536) % 32768;
+}
+
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -336,11 +346,38 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    // Loop over the process table to determine the total number of tickets for 
+    // runnable processes.
+    int total_tickets = 0;
+    int runnable_procs = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+      total_tickets = total_tickets + p->tickets;
+      runnable_procs++;
+    }
+    if (total_tickets == 0) {
+      // We didn't find a process to run, and that's ok! Try again.
+      release(&ptable.lock);
+      continue;
+    }
+
+    // Generate a random number betwene 0 and total_tickets.
+    int golden_ticket = rand() % total_tickets;
+    int tickets_left = golden_ticket;
+
+    // Now, loop over process table until we reach the process with that ticket number.
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if (p->state != RUNNABLE)
+        continue;
+
+      // E.g. if golden ticket is 40 and p has 39 tickets, subtract
+      if (p->tickets < tickets_left) {
+        tickets_left -= p->tickets;
+        continue;
+      }
+      // Otherwise, this is the one!
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -348,6 +385,7 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      p->ticks = p->ticks + 1;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -542,15 +580,17 @@ procdump(void)
 int
 getpinfo(struct pstat * pstat_ptr)
 {
-  // TODO: should we lock?
+  // TODO: should we lock? We can skip for now.
   struct proc *p;
   // Iterate through all of the processes and fill in the table accordingly.
+  acquire(&ptable.lock);
   for (int i = 0; i < NPROC; i++) {
     p = &ptable.proc[i];
     pstat_ptr->inuse[i] = p->state == UNUSED ? 0 : 1;
     pstat_ptr->tickets[i] = p->tickets;
     pstat_ptr->pid[i] = p->pid;
-    pstat_ptr->ticks[i] = 0;
+    pstat_ptr->ticks[i] = p->ticks;
   }
+  release(&ptable.lock);
   return 0;
 }
