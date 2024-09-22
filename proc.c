@@ -112,6 +112,9 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Also set the default ticket count.
+  p->tickets = 1;
+
   return p;
 }
 
@@ -199,6 +202,8 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  // Also copy over the number of tickets
+  np->tickets = curproc->tickets;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
